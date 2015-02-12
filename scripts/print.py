@@ -10,10 +10,13 @@ class Print():
         '''
         pass
 
-    def do_tweet(self, text):
-        print(">>>>>>",
-              str(datetime.datetime.now()),
-              "\n",
-              json.dumps(text, indent=2))
+    def do_any(self, text):
+        print(">>>>>> %s \n%s" % (datetime.datetime.now(),
+                                  json.dumps(text, indent=2)))
+
+    def do_tweet(self, message):
+        print(">>>> %s \n%s: %s" % (message['created_at'],
+                                    message['user']['screen_name'],
+                                    message['text']))
 
 handler = Print()
