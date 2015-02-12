@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import json
+import logging
 import signal
 import sys
 import importlib
@@ -9,13 +10,16 @@ from requests_oauthlib import OAuth1Session
 import scripts
 
 
-class TwitterStreamingDaemon():
+class Daemon():
     def __init__(self, config_path):
         self.session = None
         self.modules = {}
         self.scripts = {
             "tweet": [],
         }
+        logging.basicConfig(level=logging.DEBUG,
+                            filename="./daemon.log",
+                            format="%(asctime)s %(levelname)s %(funcName)s: %(message)s",)
 
         self.reload(config_path=config_path)
         signal.signal(signal.SIGINT, self.handle_SIGINT)
@@ -28,7 +32,8 @@ class TwitterStreamingDaemon():
         ''' Reload configuration
             :param config_path: Config file path, accept json file only.
         '''
-        #logging.log()
+        logging.info("Reload configuration")
+
         # Read config
         with open(config_path, 'r') as f:
             config_raw = f.read()
@@ -40,39 +45,38 @@ class TwitterStreamingDaemon():
                                      resource_owner_key=config['access_token'],
                                      resource_owner_secret=config['access_secret'])
 
-        # Reload scripts
+        # Init scripts
         modules = {}
         scripts = {}
-        for hook in self.scripts:
-            scripts[hook] = []
+        for type_ in self.scripts:
+            scripts[type_] = []
 
         for name in config['scripts']:
             if name in self.modules:
                 # Reload module when module was loaded
                 try:
                     module = importlib.reload(self.modules[name])
-                except Exception as err:
-                    # logging.error()
-                    raise err
+                except ImportError as err:
+                    logging.error(err)
+                    continue
             else:
                 # Load module when module wasn't loaded
                 try:
                     module = importlib.import_module("scripts.%s" % name)
-                except ImportError:
-                    # logging.error()
+                except ImportError as err:
+                    logging.error(err)
                     continue
             modules[name] = module
 
-            for hook, script in module.HOOKS.items():
-                if hook in scripts:
-                    scripts[hook].append(script)
+            for type_ in self.scripts:
+                handler = getattr(module.handler, "do_%s" % type_, None)
+                if callable(handler):
+                    scripts[type_].append(handler)
 
         self.modules = modules
         self.scripts = scripts
 
     def run(self):
-        ''' Run the streaming client_secret
-        '''
         r = self.session.get('https://userstream.twitter.com/1.1/user.json',
                              stream=True)
         for line in r.iter_lines(chunk_size=1):
@@ -83,7 +87,7 @@ class TwitterStreamingDaemon():
                 for script in self.scripts["tweet"]:
                     script(message)
             except:
-                print(line)
+                logging.warning("Failed to process json object: %s" % line)
 
     def handle_SIGINT(self, sig, frame):
         sys.exit(0)
@@ -93,5 +97,5 @@ class TwitterStreamingDaemon():
 
 
 if __name__ == '__main__':
-    daemon = TwitterStreamingDaemon(config_path='./config.json')
+    daemon = Daemon(config_path='./config.json')
     daemon.run()

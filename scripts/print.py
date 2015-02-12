@@ -3,12 +3,17 @@
 import datetime
 import json
 
-def print_json(text):
-	print(">>>>>>",
-	      str(datetime.datetime.now()),
-	      "\n",
-	      json.dumps(text, indent=2))
+class Print():
+    def __init__(self):
+        ''' Init whatever you need here.
+            For example, a datebase connection
+        '''
+        pass
 
-HOOKS = {
-	"tweet": print_json
-}
+    def do_tweet(self, text):
+        print(">>>>>>",
+              str(datetime.datetime.now()),
+              "\n",
+              json.dumps(text, indent=2))
+
+handler = Print()
