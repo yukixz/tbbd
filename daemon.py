@@ -22,9 +22,11 @@ class Daemon():
             "scrub_geo": [],
             "friends": [],
         }
-        logging.basicConfig(level=logging.DEBUG,
-                            filename="./daemon.log",
-                            format="%(asctime)s %(levelname)s %(funcName)s: %(message)s",)
+        logging.basicConfig(
+            level=logging.DEBUG,
+            filename="./daemon.log",
+            format="%(asctime)s %(levelname)s %(funcName)s: %(message)s",
+            )
 
         self.reload(config_path=config_path)
         signal.signal(signal.SIGINT, self.handle_SIGINT)
@@ -48,10 +50,12 @@ class Daemon():
         ''' We should not allow update twitter session on running.
         '''
         if self.session is None:
-            self.session = OAuth1Session(client_key=config['consumer_key'],
-                                         client_secret=config['consumer_secret'],
-                                         resource_owner_key=config['access_token'],
-                                         resource_owner_secret=config['access_secret'])
+            self.session = OAuth1Session(
+                client_key=config['consumer_key'],
+                client_secret=config['consumer_secret'],
+                resource_owner_key=config['access_token'],
+                resource_owner_secret=config['access_secret'],
+                )
 
         # Init scripts
         modules = {}
@@ -188,7 +192,8 @@ class Daemon():
                 if self.skip_control_message(message) is not None:
                     self.process_message(message)
             except Exception as err:
-                logging.warning("Failed to process message: %s\n%s" % (err, line))
+                logging.warning(
+                    "Failed to process message: %s\n%s" % (err, line))
 
     def handle_SIGINT(self, sig, frame):
         sys.exit(0)
