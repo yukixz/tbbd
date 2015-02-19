@@ -30,7 +30,7 @@ class Daemon():
 
         self.reload(config_path=config_path)
         signal.signal(signal.SIGINT, self.handle_SIGINT)
-        signal.signal(signal.SIGUSR1, self.handle_SIGUSR1)
+        # signal.signal(signal.SIGUSR1, self.handle_SIGUSR1)
 
     def __del__(self):
         pass
