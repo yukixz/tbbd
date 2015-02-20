@@ -69,14 +69,14 @@ class Daemon():
                 try:
                     module = importlib.reload(self.modules[name])
                 except ImportError as err:
-                    logging.error(err)
+                    logging.exception(err)
                     continue
             else:
                 # Load module when module wasn't loaded
                 try:
                     module = importlib.import_module("scripts.%s" % name)
                 except ImportError as err:
-                    logging.error(err)
+                    logging.exception(err)
                     continue
             modules[name] = module
 
@@ -192,8 +192,8 @@ class Daemon():
                 if self.skip_control_message(message) is not None:
                     self.process_message(message)
             except Exception as err:
-                logging.warning(
-                    "Failed to process message: %s\n%s" % (err, line))
+                logging.warning("Failed to process message: %s" % line)
+                logging.exception(err)
 
     def handle_SIGINT(self, sig, frame):
         sys.exit(0)
