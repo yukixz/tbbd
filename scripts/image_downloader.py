@@ -78,6 +78,10 @@ CREATE TABLE manifest (
             ])
 
     def do_tweet(self, tweet):
+        # Skip retweet
+        if 'retweeted_status' in tweet:
+            return
+        
         images = tweet.get('extended_entities', {}).get('media', [])
         for image in images:
             self.download(Image(
