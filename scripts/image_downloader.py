@@ -7,17 +7,6 @@ import sqlite3
 import subprocess
 
 
-class Image():
-    def __init__(self, url, owner, tweet):
-        ''' :param url: url of a image
-            :param owner: owner's id if the image
-            :parem tweet: tweet's id contains the image
-        '''
-        self.url = url
-        self.owner = owner
-        self.tweet = tweet
-
-
 class ImageDownloadHandler():
     FOLDER = "./images/"
     DATABASE = os.path.join(FOLDER, "manifest.db")
@@ -46,57 +35,74 @@ class ImageDownloadHandler():
         except sqlite3.OperationalError:
             logging.info("")
             cursor = self.connection.cursor()
-            cursor.execute(
-                '''
-CREATE TABLE manifest (
-    url VARCHAR(255),
-    owner UNSIGNED BIGINT,
-    tweet UNSIGNED BIGINT
-)
-                ''')
+            cursor.execute((
+                "CREATE TABLE manifest ("
+                "   tweet_url VARCHAR(255),"
+                "   media_url VARCHAR(255),"
+                "   owner UNSIGNED BIGINT"
+                ")"
+                ))
 
     def __del__(self):
         self.connection.commit()
         self.connection.close()
 
-    def download(self, image):
+    def download(self, image, user):
         # print("Download image: %s" % image.url)
 
         # Save image info into datebase
         cursor = self.connection.cursor()
-        cursor.execute(
-            "INSERT INTO manifest (url, owner, tweet) VALUES (?,?,?)",
-            (image.url, image.owner, image.tweet))
+        cursor.execute((
+                "INSERT INTO manifest"
+                "(tweet_url, media_url, owner)"
+                "VALUES (?,?,?)"
+            ), (
+                image['expanded_url'],
+                image['media_url'],
+                user['id']
+            ))
 
         # Retrive the image
-        url = image.url + ':orig'
-        filename = os.path.basename(image.url)
+        subfolder = "@{screen_name}-{id}".format(**user)
+        filename = os.path.basename(image['media_url'])
         path = os.path.join(self.FOLDER, filename)
+        url = image['media_url'] + ':orig'
         subprocess.Popen([
             "wget", url,
             "-O%s" % path,
+            "--no-use-server-timestamps",
             ])
 
     def do_tweet(self, tweet):
         # Skip retweet
         if 'retweeted_status' in tweet:
             return
-        
+        if 'RT @' in tweet['text']:
+            return
+
         images = tweet.get('extended_entities', {}).get('media', [])
         for image in images:
-            self.download(Image(
-                url=image['media_url'],
-                owner=tweet['user']['id'],
-                tweet=tweet['id'],
-                ))
+            self.download(image, tweet['user'])
 
 
 handler = ImageDownloadHandler()
 
 if __name__ == '__main__':
     handler = ImageDownloadHandler()
-    handler.download(Image(
-            url="http://pbs.twimg.com/media/B9-wHL4CYAE7t1J.jpg",
-            owner=327877263,
-            tweet=567365717209513984,
-        ))
+    handler.do_tweet(
+        {
+            "text": "http://t.co/bF5uDpdZvU",
+            "user": {
+                "id": 327877263,
+                "screen_name": "MikaAkagi",
+                },
+            "extended_entities": {
+                "media": [{
+                    "expanded_url":
+                        "http://twitter.com/MikaAkagi/status/567365717209513984/photo/1",
+                    "media_url": "http://pbs.twimg.com/media/B9-wHL4CYAE7t1J.jpg",
+                    "type": "photo",
+                }]
+            },
+        }
+        )
