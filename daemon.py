@@ -121,9 +121,11 @@ class Daemon():
         if 'disconnect' in message:
             if message['disconnect']['code'] == 12:
                 # reconnect
+                logging.warning("Receive reconnect message: %s" % message)
                 return None
             else:
                 # disconnect
+                logging.warning("Receive disconnect message: %s" % message)
                 sys.exit(1)
                 return None
         # Stall warnings (warning)
@@ -194,6 +196,7 @@ class Daemon():
             except Exception as err:
                 logging.warning("Failed to process message: %s" % line)
                 logging.exception(err)
+        logging.error("Stream closed.")
 
     def handle_SIGINT(self, sig, frame):
         sys.exit(0)

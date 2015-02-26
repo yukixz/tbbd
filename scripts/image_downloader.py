@@ -71,6 +71,7 @@ class ImageDownloadHandler():
             "wget", url,
             "-O%s" % path,
             "--no-use-server-timestamps",
+            "--quiet",
             ])
 
     def do_tweet(self, tweet):
