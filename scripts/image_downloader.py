@@ -80,9 +80,11 @@ class ImageDownloadHandler():
         if 'RT @' in tweet['text']:
             return
 
-        images = tweet.get('extended_entities', {}).get('media', [])
-        for image in images:
-            self.download(image, tweet['user'])
+        entities = tweet.get('extended_entities', {}).get('media', [])
+        user = tweet['user']
+        for media in entities:
+            if media['type'] == 'photo':
+                self.download(media, user)
 
 
 handler = ImageDownloadHandler()
