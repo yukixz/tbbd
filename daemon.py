@@ -10,10 +10,90 @@ from requests_oauthlib import OAuth1Session
 import scripts
 
 
+class TwitterStream():
+    ''' Twitter stream implemented using streaming APIs.
+        Provides all message types declared at:
+        https://dev.twitter.com/streaming/overview/messages-types
+    '''
+
+    def __init__(self,
+                 consumer_key, consumer_secret, access_token, access_secret):
+        self.session = OAuth1Session(
+            client_key=consumer_key,
+            client_secret=consumer_secret,
+            resource_owner_key=access_token,
+            resource_owner_secret=access_secret,
+            )
+        self.stream = None
+
+    def create_stream(self):
+        if not (self.stream is None or self.stream.raw.closed):
+            logging.warning("Stream exists, shouldn't create again.")
+            return
+        logging.info("Creating stream.")
+        URL = 'https://userstream.twitter.com/1.1/user.json'
+        response = self.session.get(URL, stream=True)
+        if response.status_code == 200:
+            self.stream = response
+        if response.status_code != 200:
+            logging.critical("Failed to create stream: %s" % response.text)
+            sys.exit(1)
+
+    def close_stream(self):
+        if self.stream is None:
+            logging.warning("Stream not existed, cannot close.")
+            return
+        logging.info("Closing stream.")
+        self.stream.close()
+        self.stream = None
+
+    def iter_messages(self):
+        while True:
+            self.create_stream()
+
+            for line in self.stream.iter_lines(chunk_size=1):
+                ''' Process Control Messages
+                    Reconnect or disconnect if necessary
+                    https://dev.twitter.com/streaming/overview/messages-types
+                '''
+                # Blank lines
+                if len(line) == 0:
+                    continue
+
+                try:
+                    message = json.loads(line.decode('UTF-8'))
+                except ValueError:
+                    logging.warning("Failed to load message: %s" % line)
+                    continue
+
+                # Disconnect messages (disconnect)
+                if 'disconnect' in message:
+                    logging.warning("Receive disconnect message: %s" % message)
+                    if message['disconnect']['code'] == 12:
+                        # reconnect
+                        break
+                    else:
+                        # disconnect
+                        sys.exit(1)
+
+                # Stall warnings (warning)
+                if 'warning' in message:
+                    logging.warning("Warning messsage: %s" % message)
+                    continue
+
+                # Payload messages
+                yield message
+
+            self.close_stream()
+
+
 class Daemon():
     def __init__(self, config_path):
-        self.session = None
-        self.stream = None
+        ''' :param config_path: Config file path, accepts json file only.
+        '''
+        signal.signal(signal.SIGINT, self.handle_SIGINT)
+        # signal.signal(signal.SIGUSR1, self.handle_SIGUSR1)
+
         self.modules = {}
         self.scripts = {
             "any": [],
@@ -22,40 +102,19 @@ class Daemon():
             "scrub_geo": [],
             "friends": [],
         }
-        logging.basicConfig(
-            level=logging.DEBUG,
-            filename="./daemon.log",
-            format="%(asctime)s %(levelname)s %(funcName)s: %(message)s",
-            )
-
-        self.reload(config_path=config_path)
-        signal.signal(signal.SIGINT, self.handle_SIGINT)
-        # signal.signal(signal.SIGUSR1, self.handle_SIGUSR1)
-
-    def __del__(self):
-        pass
-
-    def reload(self, config_path="./config.json"):
-        ''' Reload configuration
-            :param config_path: Config file path, accept json file only.
-        '''
-        logging.info("Reload configuration")
 
         # Read config
         with open(config_path, 'r') as f:
             config_raw = f.read()
         config = json.loads(config_raw)
 
-        # Init twitter session
-        ''' We should not allow update twitter session on running.
-        '''
-        if self.session is None:
-            self.session = OAuth1Session(
-                client_key=config['consumer_key'],
-                client_secret=config['consumer_secret'],
-                resource_owner_key=config['access_token'],
-                resource_owner_secret=config['access_secret'],
-                )
+        # Init stream
+        self.stream = TwitterStream(
+            consumer_key=config['consumer_key'],
+            consumer_secret=config['consumer_secret'],
+            access_token=config['access_token'],
+            access_secret=config['access_secret'],
+            )
 
         # Init scripts
         modules = {}
@@ -87,53 +146,6 @@ class Daemon():
 
         self.modules = modules
         self.scripts = scripts
-
-    def create_stream(self):
-        if self.stream is not None:
-            logging.warning("Stream was created. Mustn't create again.")
-            return
-        URL = 'https://userstream.twitter.com/1.1/user.json'
-        response = self.session.get(URL, stream=True)
-        if response.status_code == 200:
-            self.stream = response
-        if response.status_code != 200:
-            logging.critical("Failed to create stream: %s" % response.text)
-            sys.exit(1)
-
-    def close_stream(self):
-        if self.stream is None:
-            logging.warning("Stream unavailable, cannot close.")
-            return
-        self.stream.close()
-        self.stream = None
-
-    def skip_control_message(self, message):
-        ''' Check message and skip control message
-            Docs: https://dev.twitter.com/streaming/overview/messages-types
-            :param message: a twitter message (json)
-            :return None: if message is processed.
-            :return message: else
-        '''
-        # Blank lines
-        if len(message) == 0:
-            return None
-        # Disconnect messages (disconnect)
-        if 'disconnect' in message:
-            if message['disconnect']['code'] == 12:
-                # reconnect
-                logging.warning("Receive reconnect message: %s" % message)
-                return None
-            else:
-                # disconnect
-                logging.warning("Receive disconnect message: %s" % message)
-                sys.exit(1)
-                return None
-        # Stall warnings (warning)
-        if 'warning' in message:
-            logging.warning("Warning messsage: %s" % message)
-            return None
-        # `message` is not a control message
-        return message
 
     def process_message(self, message):
         ''' Guess message type and execute relevant scripts
@@ -185,26 +197,23 @@ class Daemon():
             pass
 
     def run(self):
-        self.create_stream()
-        for line in self.stream.iter_lines(chunk_size=1):
-            if len(line) == 0:
-                continue
+        for message in self.stream.iter_messages():
             try:
-                message = json.loads(line.decode('UTF-8'))
-                if self.skip_control_message(message) is not None:
-                    self.process_message(message)
+                self.process_message(message)
             except Exception as err:
-                logging.warning("Failed to process message: %s" % line)
+                logging.warning("Failed to process message: %s" % message)
                 logging.exception(err)
         logging.error("Stream closed.")
 
     def handle_SIGINT(self, sig, frame):
         sys.exit(0)
 
-    def handle_SIGUSR1(self, sig, frame):
-        self.reload()
-
 
 if __name__ == '__main__':
+    logging.basicConfig(
+        level=logging.INFO,
+        filename="./daemon.log",
+        format="%(asctime)s %(levelname)s %(funcName)s: %(message)s",
+        )
     daemon = Daemon(config_path='./config.json')
     daemon.run()
