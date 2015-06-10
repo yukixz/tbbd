@@ -11,6 +11,7 @@ class Print():
         pass
 
     def do_any(self, text):
+        return
         print(">>>>>> %s \n%s" % (datetime.datetime.now(),
                                   json.dumps(text, indent=2)))
 

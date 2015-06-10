@@ -48,7 +48,7 @@ class ImageDownloadHandler():
         self.connection.close()
 
     def download(self, image, user):
-        # print("Download image: %s" % image.url)
+        print("Download image: %s" % image['media_url'])
 
         # Save image info into datebase
         cursor = self.connection.cursor()

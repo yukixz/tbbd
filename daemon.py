@@ -4,6 +4,7 @@ import json
 import logging
 import signal
 import sys
+import time
 import importlib
 from requests_oauthlib import OAuth1Session
 
@@ -155,22 +156,22 @@ class Daemon():
         # Any message
         if True:
             for script in self.scripts.get('any', []):
-                script(message)
+                process_message_with_script(script, message)
 
         ''' Public stream messages
         '''
         # Standard Tweet payloads
         if 'id' in message:
             for script in self.scripts.get('tweet', []):
-                script(message)
+                process_message_with_script(script, message)
         # Status deletion notices (delete)
         if 'delete' in message:
             for script in self.scripts.get('delete', []):
-                script(message)
+                process_message_with_script(script, message)
         # Location deletion notices (scrub_geo)
         if 'scrub_geo' in message:
             for script in self.scripts.get('scrub_geo', []):
-                script(message)
+                process_message_with_script(script, message)
         # Limit notices (limit)
         if 'limit' in message:
             pass
@@ -189,21 +190,30 @@ class Daemon():
         # Friends lists (friends)
         if 'friends' in message:
             for script in self.scripts.get('friends', []):
-                script(message)
+                process_message_with_script(script, message)
         # Direct Messages
             # TODO
         # Events (event)
         if 'event' in message:
             pass
 
+    def process_message_with_script(self, script, message):
+        try:
+            script(message)
+        except Exception as err:
+            logging.warning("Script %s failed to process message: %s" \
+                            % (script.__func__, message))
+
     def run(self):
-        for message in self.stream.iter_messages():
+        while True:
             try:
-                self.process_message(message)
+                for message in self.stream.iter_messages():
+                    self.process_message(message)
             except Exception as err:
-                logging.warning("Failed to process message: %s" % message)
+                logging.error("Stream error")
                 logging.exception(err)
-        logging.error("Stream closed.")
+            finally:
+                time.sleep(10)
 
     def handle_SIGINT(self, sig, frame):
         sys.exit(0)
