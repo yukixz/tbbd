@@ -156,22 +156,22 @@ class Daemon():
         # Any message
         if True:
             for script in self.scripts.get('any', []):
-                process_message_with_script(script, message)
+                self.process_message_with_script(message, script)
 
         ''' Public stream messages
         '''
         # Standard Tweet payloads
         if 'id' in message:
             for script in self.scripts.get('tweet', []):
-                process_message_with_script(script, message)
+                self.process_message_with_script(message, script)
         # Status deletion notices (delete)
         if 'delete' in message:
             for script in self.scripts.get('delete', []):
-                process_message_with_script(script, message)
+                self.process_message_with_script(message, script)
         # Location deletion notices (scrub_geo)
         if 'scrub_geo' in message:
             for script in self.scripts.get('scrub_geo', []):
-                process_message_with_script(script, message)
+                self.process_message_with_script(message, script)
         # Limit notices (limit)
         if 'limit' in message:
             pass
@@ -190,14 +190,14 @@ class Daemon():
         # Friends lists (friends)
         if 'friends' in message:
             for script in self.scripts.get('friends', []):
-                process_message_with_script(script, message)
+                self.process_message_with_script(message, script)
         # Direct Messages
             # TODO
         # Events (event)
         if 'event' in message:
             pass
 
-    def process_message_with_script(self, script, message):
+    def process_message_with_script(self, message, script):
         try:
             script(message)
         except Exception as err:
