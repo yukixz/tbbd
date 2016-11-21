@@ -17,8 +17,8 @@ class Print():
                                   json.dumps(text, indent=2)))
 
     def do_tweet(self, message):
-        print(">>>> %s \n%s: %s" % (message['created_at'],
-                                    message['user']['screen_name'],
-                                    message['text']))
+        print(">>>> %s %s:\n%s" % (message['created_at'],
+                                   message['user']['screen_name'],
+                                   message['text']))
 
 handler = Print()

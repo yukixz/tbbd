@@ -5,7 +5,7 @@ import traceback
 import xmlrpc.client
 
 CLIENT = [
-    xmlrpc.client.ServerProxy("http://localhost:12450", allow_none=True)
+    xmlrpc.client.ServerProxy("http://localhost:12450")
 ]
 
 

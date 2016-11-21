@@ -11,6 +11,14 @@ from requests_oauthlib import OAuth1Session
 import scripts
 
 
+REQUESTS_OPTIONS = {
+    'proxies': {
+        'http': 'socks5://127.0.0.1:1080',
+        'https': 'socks5://127.0.0.1:1080',
+    }
+}
+
+
 class TwitterStream():
     ''' Twitter stream implemented using streaming APIs.
         Provides all message types declared at:
@@ -33,7 +41,8 @@ class TwitterStream():
             return
         logging.info("Creating stream.")
         URL = 'https://userstream.twitter.com/1.1/user.json'
-        response = self.session.get(URL, stream=True)
+        response = self.session.get(URL, stream=True,
+                                    **REQUESTS_OPTIONS)
         if response.status_code == 200:
             self.stream = response
         if response.status_code != 200:
@@ -201,7 +210,7 @@ class Daemon():
         try:
             script(message)
         except Exception as err:
-            logging.warning("Script %s failed to process message: %s" \
+            logging.warning("Script %s failed to process message:\n%s"
                             % (script.__func__, message))
 
     def run(self):
@@ -211,7 +220,7 @@ class Daemon():
                     self.process_message(message)
             except Exception as err:
                 logging.error("Stream error")
-                logging.exception(err)
+                # logging.exception(err)
             finally:
                 time.sleep(10)
 
@@ -222,7 +231,8 @@ class Daemon():
 if __name__ == '__main__':
     logging.basicConfig(
         level=logging.INFO,
-        filename="./daemon.log",
+        stream=sys.stderr,
+        # filename="./daemon.log",
         format="%(asctime)s %(levelname)s %(funcName)s: %(message)s",
         )
     daemon = Daemon(config_path='./config.json')
