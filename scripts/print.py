@@ -13,8 +13,8 @@ class Print():
 
     def do_any(self, text):
         return
-        print(">>>>>> %s \n%s" % (datetime.datetime.now(),
-                                  json.dumps(text, indent=2)))
+        print(">>>> %s\n%s" % (datetime.datetime.now(),
+                               json.dumps(text, indent=2)))
 
     def do_tweet(self, message):
         print(">>>> %s %s:\n%s" % (message['created_at'],

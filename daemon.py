@@ -12,6 +12,7 @@ import scripts
 
 
 REQUESTS_OPTIONS = {
+    'timeout': 60,
     'proxies': {
         'http': 'socks5://127.0.0.1:1080',
         'https': 'socks5://127.0.0.1:1080',
@@ -110,6 +111,7 @@ class Daemon():
             "tweet": [],
             "delete": [],
             "scrub_geo": [],
+            "user_update": [],
             "friends": [],
         }
 
@@ -164,22 +166,22 @@ class Daemon():
         '''
         # Any message
         if True:
-            for script in self.scripts.get('any', []):
+            for script in self.scripts['any']:
                 self.process_message_with_script(message, script)
 
         ''' Public stream messages
         '''
         # Standard Tweet payloads
         if 'id' in message:
-            for script in self.scripts.get('tweet', []):
+            for script in self.scripts['tweet']:
                 self.process_message_with_script(message, script)
         # Status deletion notices (delete)
         if 'delete' in message:
-            for script in self.scripts.get('delete', []):
+            for script in self.scripts['delete']:
                 self.process_message_with_script(message, script)
         # Location deletion notices (scrub_geo)
         if 'scrub_geo' in message:
-            for script in self.scripts.get('scrub_geo', []):
+            for script in self.scripts['scrub_geo']:
                 self.process_message_with_script(message, script)
         # Limit notices (limit)
         if 'limit' in message:
@@ -193,12 +195,15 @@ class Daemon():
             # Processed in self.skip_control_message()
         # Stall warnings (warning)
             # Processed in self.skip_control_message()
+        if message.get('event') == "user_update":
+            for script in self.scripts['user_update']:
+                self.process_message_with_script(message, script)
 
         ''' User stream messages
         '''
         # Friends lists (friends)
         if 'friends' in message:
-            for script in self.scripts.get('friends', []):
+            for script in self.scripts['friends']:
                 self.process_message_with_script(message, script)
         # Direct Messages
             # TODO
