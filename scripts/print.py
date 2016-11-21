@@ -3,6 +3,7 @@
 import datetime
 import json
 
+
 class Print():
     def __init__(self):
         ''' Init whatever you need here.
