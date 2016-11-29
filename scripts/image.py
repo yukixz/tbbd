@@ -74,13 +74,24 @@ class ImageDownloadHandler():
             "--quiet",
             ])
 
-    def do_tweet(self, tweet):
+    def do_tweet_disabled(self, tweet):
         # Skip retweet
         if 'retweeted_status' in tweet:
             return
         if 'RT @' in tweet['text']:
             return
 
+        entities = tweet.get('extended_entities', {}).get('media', [])
+        user = tweet['user']
+        for media in entities:
+            if media['type'] == 'photo':
+                self.download(media, user)
+
+    def do_favorite(self, event, current_user):
+        # Skip being favorited
+        if event['source'].get('screen_name') != current_user:
+            return
+        tweet = event['target_object']
         entities = tweet.get('extended_entities', {}).get('media', [])
         user = tweet['user']
         for media in entities:

@@ -5,6 +5,7 @@ import logging
 import signal
 import sys
 import time
+import traceback
 import importlib
 from requests_oauthlib import OAuth1Session
 
@@ -42,7 +43,9 @@ class TwitterStream():
             return
         logging.info("Creating stream.")
         URL = 'https://userstream.twitter.com/1.1/user.json'
-        response = self.session.get(URL, stream=True,
+        params = {"replies": "all"}
+        response = self.session.get(URL, params=params,
+                                    stream=True,
                                     **REQUESTS_OPTIONS)
         if response.status_code == 200:
             self.stream = response
@@ -67,6 +70,7 @@ class TwitterStream():
                     Reconnect or disconnect if necessary
                     https://dev.twitter.com/streaming/overview/messages-types
                 '''
+                logging.debug(len(line))
                 # Blank lines
                 if len(line) == 0:
                     continue
@@ -111,8 +115,8 @@ class Daemon():
             "tweet": [],
             "delete": [],
             "scrub_geo": [],
-            "user_update": [],
             "friends": [],
+            "favorite": [],
         }
 
         # Read config
@@ -121,6 +125,7 @@ class Daemon():
         config = json.loads(config_raw)
 
         # Init stream
+        self.current_user = config['current_user']
         self.stream = TwitterStream(
             consumer_key=config['consumer_key'],
             consumer_secret=config['consumer_secret'],
@@ -195,9 +200,10 @@ class Daemon():
             # Processed in self.skip_control_message()
         # Stall warnings (warning)
             # Processed in self.skip_control_message()
-        if message.get('event') == "user_update":
-            for script in self.scripts['user_update']:
-                self.process_message_with_script(message, script)
+        if message.get('event') == "favorite":
+            for script in self.scripts['favorite']:
+                self.process_message_with_script(
+                    message, script, current_user=self.current_user)
 
         ''' User stream messages
         '''
@@ -211,9 +217,9 @@ class Daemon():
         if 'event' in message:
             pass
 
-    def process_message_with_script(self, message, script):
+    def process_message_with_script(self, message, script, *args, **kwargs):
         try:
-            script(message)
+            script(message, *args, **kwargs)
         except Exception as err:
             logging.warning("Script %s failed to process message:\n%s"
                             % (script.__func__, message))
@@ -225,7 +231,7 @@ class Daemon():
                     self.process_message(message)
             except Exception as err:
                 logging.error("Stream error")
-                # logging.exception(err)
+                logging.debug(traceback.format_exc())
             finally:
                 time.sleep(10)
 
