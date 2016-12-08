@@ -7,21 +7,25 @@ import sqlite3
 import subprocess
 
 
+# Create folder if not exists or
+# Try to delete if exist but not directory
+def mkdir(path):
+    if os.path.exists(path) and not os.path.isdir(path):
+        try:
+            os.remove(path)
+        except Exception as e:
+            logging.critical(e)
+            raise e
+    if not os.path.exists(path):
+        os.mkdir(path)
+
+
 class ImageDownloadHandler():
     FOLDER = "./images/"
     DATABASE = os.path.join(FOLDER, "manifest.db")
 
     def __init__(self):
-        # Create download folder if not exists or
-        # Try to delete if exist but not a diirectory
-        if os.path.exists(self.FOLDER) and not os.path.isdir(self.FOLDER):
-            try:
-                os.remove(self.FOLDER)
-            except Exception as e:
-                logging.critical(e)
-                raise e
-        if not os.path.exists(self.FOLDER):
-            os.mkdir(self.FOLDER)
+        mkdir(self.FOLDER)
 
         # Establish database connection
         self.connection = sqlite3.connect(
@@ -48,7 +52,7 @@ class ImageDownloadHandler():
         self.connection.close()
 
     def download(self, image, user):
-        print("Download image: %s" % image['media_url'])
+        logging.info("Download %s" % image['media_url'])
 
         # Save image info into datebase
         cursor = self.connection.cursor()
@@ -63,9 +67,11 @@ class ImageDownloadHandler():
             ))
 
         # Retrive the image
-        subfolder = "@{screen_name}-{id}".format(**user)
+        subfolder = os.path.join(
+            self.FOLDER, "@{screen_name}-{id}".format(**user))
+        mkdir(subfolder)
         filename = os.path.basename(image['media_url'])
-        path = os.path.join(self.FOLDER, filename)
+        path = os.path.join(subfolder, filename)
         url = image['media_url'] + ':orig'
         subprocess.Popen([
             "wget", url,
