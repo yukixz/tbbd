@@ -14,10 +14,10 @@ import scripts
 
 REQUESTS_OPTIONS = {
     'timeout': 60,
-    'proxies': {
-        'http': 'socks5://127.0.0.1:1080',
-        'https': 'socks5://127.0.0.1:1080',
-    }
+    # 'proxies': {
+    #     'http': 'socks5://127.0.0.1:1080',
+    #     'https': 'socks5://127.0.0.1:1080',
+    # }
 }
 
 
@@ -242,8 +242,8 @@ class Daemon():
 if __name__ == '__main__':
     logging.basicConfig(
         level=logging.INFO,
-        stream=sys.stderr,
-        # filename="./daemon.log",
+        # stream=sys.stderr,
+        filename="./daemon.log",
         format="%(asctime)s %(levelname)s %(funcName)s: %(message)s",
         )
     daemon = Daemon(config_path='./config.json')
