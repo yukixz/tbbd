@@ -10,7 +10,8 @@ import redis
 import sys
 from datetime import datetime
 from flask import Flask, abort, request
-from config import *
+from config import TWITTER_CONSUMER_SECRET
+from utils import Queue
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -18,7 +19,7 @@ logging.basicConfig(
 )
 
 app = Flask(__name__)
-queue = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB, password=REDIS_PASSWORD)
+queue = Queue()
 
 
 @app.after_request
@@ -83,10 +84,7 @@ def webhook_event():
 
     # Add Event Message to Redis Queue
     if request.json:
-        fields = {}
-        for k,v in request.json.items():
-            fields[k] = json.dumps(v)
-        queue.xadd(REDIS_XNAME, fields)
+        queue.add(request.json)
     else:
         logging.warn(f"Non-JSON message: {request.data}")
 
