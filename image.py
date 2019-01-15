@@ -15,7 +15,7 @@ logging.basicConfig(
 )
 
 class ImageDownloader():
-    DATAROOT = "./images/"
+    DATAROOT = "./image/"
     DATABASE = os.path.join(DATAROOT, "manifest.db")
 
     def __init__(self):
@@ -38,10 +38,11 @@ class ImageDownloader():
             cursor = self.connection.cursor()
             cursor.execute((
                 "CREATE TABLE manifest ("
-                "   url   VARCHAR(255),"
+                "   user  UNSIGNED BIGINT,"
+                "   name  VARCHAR(255),"
+                "   tweet UNSIGNED BIGINT,"
                 "   text  VARCHAR(255),"
-                "   media VARCHAR(255),"
-                "   owner UNSIGNED BIGINT"
+                "   media VARCHAR(255)"
                 ")"
                 ))
 
@@ -50,20 +51,19 @@ class ImageDownloader():
         self.connection.close()
 
     def download(self, tweet, media):
-        logging.info("Download %s" % media['media_url'])
         user = tweet['user']
+        logging.info(f"Download @{user['screen_name']} {tweet['id']}")
 
         # Save image info into datebase
         cursor = self.connection.cursor()
         cursor.execute((
                 "INSERT INTO manifest"
-                "(url, text, media, owner)"
-                "VALUES (?,?,?,?)"
+                "(user, name, tweet, text, media)"
+                "VALUES (?,?,?,?,?)"
             ), (
-                media['expanded_url'],
-                tweet['text'],
+                user['id'], user['screen_name'],
+                tweet['id'], tweet['text'],
                 media['media_url'],
-                user['id'],
             ))
 
         # Retrive the image
