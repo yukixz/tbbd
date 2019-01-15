@@ -67,9 +67,7 @@ def webhook_crc():
 @app.route("/webhook", methods=['POST'])
 def webhook_event():
     # Validate Request from Twitter
-    if 'x-twitter-webhooks-signature' not in request.headers:
-        abort(400)
-    signature_user = request.headers['x-twitter-webhooks-signature']
+    signature_user = request.headers.get('x-twitter-webhooks-signature', "")
     if signature_user.startswith("sha256="):
         signature_user = signature_user[7:]
     digest = hmac.new(
@@ -80,7 +78,7 @@ def webhook_event():
     signature_server = base64.b64encode(digest).decode()
     if not hmac.compare_digest(signature_user, signature_server):
         logging.warn(f"Webhook signature invalid: signature_user={signature_user}, signature_server={signature_server}")
-        abort(400)
+        return abort(400)
 
     # Add Event Message to Redis Queue
     if request.json:
